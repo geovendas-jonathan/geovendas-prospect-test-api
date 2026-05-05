@@ -1,0 +1,7 @@
+node_modules/
+events.db
+events.db-journal
+events.db-wal
+events.db-shm
+*.log
+.DS_Store
