@@ -103,3 +103,63 @@ curl -X POST http://localhost:3001/webhook \
 
 curl http://localhost:3001/events
 ```
+
+## Exemplo payload outbound completo
+
+`camposIntegracao` chega como **objeto** (key→value). `contatos` é array. Aliases (se configurados na integração) renomeiam chaves no nível raiz e dentro de `contatos[*]`.
+
+```json
+{
+  "event": "prospect.created",
+  "prospectId": 5158,
+  "cnpj": "12345678000100",
+  "razaoSocial": "Empresa Teste",
+  "nomeFantasia": "Teste",
+  "email": "contato@teste.com",
+  "ddd": "11",
+  "telefone": "999998888",
+  "formaCaptacao": "Site",
+  "dataInclusao": "2026-05-07T10:30:00",
+  "contatos": [
+    {
+      "nome": "Fulano",
+      "email": "fulano@teste.com",
+      "telefone": "11988887777",
+      "whatsapp": "11988887777"
+    }
+  ],
+  "camposIntegracao": {
+    "campanha": "Black Friday",
+    "origem": "Google Ads"
+  }
+}
+```
+
+Exemplo com aliases configurados (`cnpj→document`, `contatos.email→contactEmail`):
+
+```json
+{
+  "event": "prospect.created",
+  "prospectId": 5158,
+  "document": "12345678000100",
+  "razaoSocial": "Empresa Teste",
+  "contatos": [
+    { "nome": "Fulano", "contactEmail": "fulano@teste.com" }
+  ],
+  "camposIntegracao": { "campanha": "Black Friday" }
+}
+```
+
+## Inbound (CRM recebe)
+
+Endpoint do GeoVendas: `POST /api/v1/webhook/crm/receive` com header `X-Auth-Key: <inAuthKey>`. Aceita keys padrão **ou** alias (alias prefere quando ambos presentes).
+
+```json
+{
+  "cnpj": "12345678000100",
+  "razaoSocial": "Empresa X",
+  "email": "x@x.com",
+  "contatos": [{ "nome": "A", "email": "a@x.com" }],
+  "camposIntegracao": { "origem": "API" }
+}
+```
