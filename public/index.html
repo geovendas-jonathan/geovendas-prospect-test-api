@@ -1,160 +1,272 @@
 <!doctype html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>geo-prospect-test-api · webhook events</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: #0f172a;
-        --panel: #1e293b;
-        --muted: #94a3b8;
-        --text: #e2e8f0;
-        --accent: #38bdf8;
-        --ok: #22c55e;
-        --warn: #f59e0b;
-        --err: #ef4444;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: -apple-system, Segoe UI, Roboto, sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
-      header {
-        display: flex; align-items: center; gap: 12px;
-        padding: 12px 20px; background: var(--panel); border-bottom: 1px solid #334155;
-      }
-      header h1 { font-size: 16px; margin: 0; flex: 1; }
-      header .meta { color: var(--muted); font-size: 12px; }
-      .toolbar {
-        display: flex; gap: 8px; align-items: center; padding: 12px 20px;
-        background: #0b1224; border-bottom: 1px solid #1e293b;
-      }
-      select, button, input {
-        background: var(--panel); color: var(--text); border: 1px solid #334155;
-        border-radius: 6px; padding: 6px 10px; font: inherit;
-      }
-      button { cursor: pointer; }
-      button.danger { background: #7f1d1d; border-color: #b91c1c; }
-      button:hover { filter: brightness(1.15); }
-      .status {
-        margin-left: auto; color: var(--muted); font-size: 12px;
-      }
-      table { width: 100%; border-collapse: collapse; }
-      th, td {
-        text-align: left; padding: 8px 12px; border-bottom: 1px solid #1e293b;
-        font-size: 13px;
-      }
-      th { background: #0b1224; color: var(--muted); position: sticky; top: 0; }
-      tbody tr { cursor: pointer; }
-      tbody tr:hover { background: #112036; }
-      .badge {
-        display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px;
-      }
-      .badge.created { background: #064e3b; color: #6ee7b7; }
-      .badge.updated { background: #1e3a8a; color: #93c5fd; }
-      .badge.converted { background: #4c1d95; color: #c4b5fd; }
-      .badge.unknown { background: #334155; color: var(--muted); }
-      .status-200 { color: var(--ok); }
-      .status-4xx, .status-5xx { color: var(--err); }
-      .status-0 { color: var(--warn); }
-      pre {
-        background: #020617; padding: 12px; border-radius: 8px; overflow: auto;
-        font-size: 12px; max-height: 60vh;
-      }
-      dialog {
-        background: var(--panel); color: var(--text); border: 1px solid #334155;
-        border-radius: 8px; padding: 16px; min-width: 60vw;
-      }
-      dialog::backdrop { background: rgba(0,0,0,.6); }
-      .row-meta { color: var(--muted); font-size: 12px; }
-    </style>
-  </head>
-  <body>
-    <header>
-      <h1>geo-prospect-test-api · webhook events</h1>
-      <span class="meta" id="totalCount">0 eventos</span>
-    </header>
-    <div class="toolbar">
-      <label>
-        Filtro:
-        <select id="filter">
-          <option value="">Todos</option>
-          <option value="prospect.created">prospect.created</option>
-          <option value="prospect.updated">prospect.updated</option>
-          <option value="prospect.converted">prospect.converted</option>
-        </select>
-      </label>
-      <label>
-        <input type="checkbox" id="autoRefresh" checked />
-        Auto-refresh 3s
-      </label>
-      <button id="refreshBtn">Atualizar</button>
-      <button class="danger" id="clearBtn">Limpar tudo</button>
-      <span class="status" id="lastUpdate"></span>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>geo-prospect-test-api · webhook events</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --accent: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid #334155;
+    }
+
+    header h1 {
+      font-size: 16px;
+      margin: 0;
+      flex: 1;
+    }
+
+    header .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 20px;
+      background: #0b1224;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    select,
+    button,
+    input {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button.danger {
+      background: #7f1d1d;
+      border-color: #b91c1c;
+    }
+
+    button:hover {
+      filter: brightness(1.15);
+    }
+
+    .status {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid #1e293b;
+      font-size: 13px;
+    }
+
+    th {
+      background: #0b1224;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+    }
+
+    tbody tr {
+      cursor: pointer;
+    }
+
+    tbody tr:hover {
+      background: #112036;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .badge.created {
+      background: #064e3b;
+      color: #6ee7b7;
+    }
+
+    .badge.updated {
+      background: #1e3a8a;
+      color: #93c5fd;
+    }
+
+    .badge.converted {
+      background: #4c1d95;
+      color: #c4b5fd;
+    }
+
+    .badge.unknown {
+      background: #334155;
+      color: var(--muted);
+    }
+
+    .status-200 {
+      color: var(--ok);
+    }
+
+    .status-4xx,
+    .status-5xx {
+      color: var(--err);
+    }
+
+    .status-0 {
+      color: var(--warn);
+    }
+
+    pre {
+      background: #020617;
+      padding: 12px;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 12px;
+      max-height: 60vh;
+    }
+
+    dialog {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      min-width: 60vw;
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, .6);
+    }
+
+    .row-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>geo-prospect-test-api · webhook events</h1>
+    <span class="meta" id="totalCount">0 eventos</span>
+  </header>
+  <div class="toolbar">
+    <label>
+      Filtro:
+      <select id="filter">
+        <option value="">Todos</option>
+        <option value="prospect.created">prospect.created</option>
+        <option value="prospect.updated">prospect.updated</option>
+        <option value="prospect.converted">prospect.converted</option>
+      </select>
+    </label>
+    <label>
+      <input type="checkbox" id="autoRefresh" checked />
+      Auto-refresh 10s
+    </label>
+    <button id="refreshBtn">Atualizar</button>
+    <button class="danger" id="clearBtn">Limpar tudo</button>
+    <span class="status" id="lastUpdate"></span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Recebido</th>
+        <th>Evento</th>
+        <th>Prospect</th>
+        <th>CNPJ</th>
+        <th>IP</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <dialog id="detailDialog">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <strong id="detailTitle">Evento</strong>
+      <button onclick="document.getElementById('detailDialog').close()">Fechar</button>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Recebido</th>
-          <th>Evento</th>
-          <th>Prospect</th>
-          <th>CNPJ</th>
-          <th>IP</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
+    <div class="row-meta" id="detailMeta"></div>
+    <h4>Headers</h4>
+    <pre id="detailHeaders"></pre>
+    <h4>Body</h4>
+    <pre id="detailBody"></pre>
+  </dialog>
 
-    <dialog id="detailDialog">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong id="detailTitle">Evento</strong>
-        <button onclick="document.getElementById('detailDialog').close()">Fechar</button>
-      </div>
-      <div class="row-meta" id="detailMeta"></div>
-      <h4>Headers</h4>
-      <pre id="detailHeaders"></pre>
-      <h4>Body</h4>
-      <pre id="detailBody"></pre>
-    </dialog>
+  <script>
+    const $ = (s) => document.querySelector(s)
+    const filter = $('#filter')
+    const tbody = $('#rows')
+    const totalCount = $('#totalCount')
+    const lastUpdate = $('#lastUpdate')
+    const autoRefresh = $('#autoRefresh')
+    let timer = null
 
-    <script>
-      const $ = (s) => document.querySelector(s)
-      const filter = $('#filter')
-      const tbody = $('#rows')
-      const totalCount = $('#totalCount')
-      const lastUpdate = $('#lastUpdate')
-      const autoRefresh = $('#autoRefresh')
-      let timer = null
-
-      function badge(evt) {
-        if (!evt) return '<span class="badge unknown">—</span>'
-        const k = evt.endsWith('.created') ? 'created'
-          : evt.endsWith('.updated') ? 'updated'
+    function badge(evt) {
+      if (!evt) return '<span class="badge unknown">—</span>'
+      const k = evt.endsWith('.created') ? 'created'
+        : evt.endsWith('.updated') ? 'updated'
           : evt.endsWith('.converted') ? 'converted'
-          : 'unknown'
-        return `<span class="badge ${k}">${evt}</span>`
-      }
+            : 'unknown'
+      return `<span class="badge ${k}">${evt}</span>`
+    }
 
-      function statusClass(s) {
-        if (s === 200 || s === 201) return 'status-200'
-        if (s === 0) return 'status-0'
-        if (s >= 400 && s < 500) return 'status-4xx'
-        if (s >= 500) return 'status-5xx'
-        return ''
-      }
+    function statusClass(s) {
+      if (s === 200 || s === 201) return 'status-200'
+      if (s === 0) return 'status-0'
+      if (s >= 400 && s < 500) return 'status-4xx'
+      if (s >= 500) return 'status-5xx'
+      return ''
+    }
 
-      async function load() {
-        const qs = filter.value ? `?event=${encodeURIComponent(filter.value)}` : ''
-        const r = await fetch('/events' + qs)
-        const data = await r.json()
-        totalCount.textContent = `${data.total} eventos`
-        tbody.innerHTML = data.rows.map((row) => `
+    async function load() {
+      const qs = filter.value ? `?event=${encodeURIComponent(filter.value)}` : ''
+      const r = await fetch('/events' + qs)
+      const data = await r.json()
+      totalCount.textContent = `${data.total} eventos`
+      tbody.innerHTML = data.rows.map((row) => `
           <tr data-id="${row.id}">
             <td>${row.id}</td>
             <td>${row.received_at}</td>
@@ -165,40 +277,41 @@
             <td class="${statusClass(row.status_returned)}">${row.status_returned}</td>
           </tr>
         `).join('')
-        lastUpdate.textContent = 'Atualizado ' + new Date().toLocaleTimeString()
-      }
+      lastUpdate.textContent = 'Atualizado ' + new Date().toLocaleTimeString()
+    }
 
-      async function showDetail(id) {
-        const r = await fetch('/events/' + id)
-        const row = await r.json()
-        $('#detailTitle').textContent = `#${row.id} ${row.event ?? ''}`
-        $('#detailMeta').textContent =
-          `Recebido em ${row.received_at} de ${row.ip} · status retornado ${row.status_returned}`
-        $('#detailHeaders').textContent = JSON.stringify(row.headers ?? row.headers_json, null, 2)
-        $('#detailBody').textContent = JSON.stringify(row.body ?? row.body_json, null, 2)
-        $('#detailDialog').showModal()
-      }
+    async function showDetail(id) {
+      const r = await fetch('/events/' + id)
+      const row = await r.json()
+      $('#detailTitle').textContent = `#${row.id} ${row.event ?? ''}`
+      $('#detailMeta').textContent =
+        `Recebido em ${row.received_at} de ${row.ip} · status retornado ${row.status_returned}`
+      $('#detailHeaders').textContent = JSON.stringify(row.headers ?? row.headers_json, null, 2)
+      $('#detailBody').textContent = JSON.stringify(row.body ?? row.body_json, null, 2)
+      $('#detailDialog').showModal()
+    }
 
-      tbody.addEventListener('click', (e) => {
-        const tr = e.target.closest('tr[data-id]')
-        if (tr) showDetail(tr.dataset.id)
-      })
+    tbody.addEventListener('click', (e) => {
+      const tr = e.target.closest('tr[data-id]')
+      if (tr) showDetail(tr.dataset.id)
+    })
 
-      $('#refreshBtn').addEventListener('click', load)
-      filter.addEventListener('change', load)
-      $('#clearBtn').addEventListener('click', async () => {
-        if (!confirm('Limpar todos os eventos?')) return
-        await fetch('/events', { method: 'DELETE' })
-        load()
-      })
-
-      function setupTimer() {
-        if (timer) clearInterval(timer)
-        if (autoRefresh.checked) timer = setInterval(load, 3000)
-      }
-      autoRefresh.addEventListener('change', setupTimer)
-      setupTimer()
+    $('#refreshBtn').addEventListener('click', load)
+    filter.addEventListener('change', load)
+    $('#clearBtn').addEventListener('click', async () => {
+      if (!confirm('Limpar todos os eventos?')) return
+      await fetch('/events', { method: 'DELETE' })
       load()
-    </script>
-  </body>
+    })
+
+    function setupTimer() {
+      if (timer) clearInterval(timer)
+      if (autoRefresh.checked) timer = setInterval(load, 10000)
+    }
+    autoRefresh.addEventListener('change', setupTimer)
+    setupTimer()
+    load()
+  </script>
+</body>
+
 </html>
