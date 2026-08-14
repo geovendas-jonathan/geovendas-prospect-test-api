@@ -1,6 +1,6 @@
 # geo-prospect-test-api
 
-App Node minimalista para receber webhooks **outbound** do CRM GeoVendas (`GEO-11323`) e inspecionar os eventos. Usa Express + SQLite (`better-sqlite3`).
+App Node minimalista para receber webhooks **outbound** do CRM GeoVendas e inspecionar os eventos — tanto o outbound de **prospects** (`GEO-11323`) quanto o **envio de dados de processos** via automação "Enviar dados" (`GEO-12240`). Usa Express + SQLite (`better-sqlite3`).
 
 ## Pré-requisitos
 
@@ -27,7 +27,8 @@ UI de inspeção: abra `http://localhost:3001/` no browser. Auto-refresh a cada 
 | Método | Path | Descrição |
 |---|---|---|
 | `POST` | `/webhook` | Recebe payload, persiste no SQLite, responde 200 `{ ok, id }`. |
-| `GET` | `/events?limit=50&offset=0&event=prospect.created` | Lista eventos paginados (DESC). |
+| `POST` | `/webhook/:tag` | Igual, gravando a `tag` — separa integrações distintas apontando pro mesmo receiver (ex: `/webhook/funil`). |
+| `GET` | `/events?limit=50&offset=0&event=prospect.created&tag=funil` | Lista eventos paginados (DESC); filtros `event` e `tag`. |
 | `GET` | `/events/:id` | Detalhe (headers + body). |
 | `DELETE` | `/events` | Limpa tudo. |
 | `GET` | `/health` | `{ status: "ok" }`. |
@@ -35,12 +36,26 @@ UI de inspeção: abra `http://localhost:3001/` no browser. Auto-refresh a cada 
 
 ## Configuração de teste no GeoVendas
 
+### Outbound de prospects
+
 1. Ativar flag `CRM Integrações` em **Config Modulos**.
-2. React `/crm/integracoes` → criar integração com:
-   - `callbackUrl = http://<ip-da-maquina>:3001/webhook`
-   - Marcar Status, Webhook e os 3 eventos (Criação/Atualização/Conversão).
+2. React `/crm/integracoes` (tab Webhooks) → criar integração tipo **Prospects** com:
+   - `URL de destino = http://<ip-da-maquina>:3001/webhook`
+   - Marcar Status, envio e os eventos (Criação/Atualização/Conversão/Exclusão).
 3. Criar/editar/converter prospect via Vue (CRM 360).
 4. Conferir os eventos chegando em `http://localhost:3001/`.
+
+### Envio de dados de processos (ação "Enviar dados" — GEO-12240)
+
+1. Ativar flag `CRM Integrações` em **Config Modulos**.
+2. React `/crm/integracoes` (tab Webhooks) → criar integração tipo **Fluxos e Processos** com:
+   - `URL de destino = http://<ip-da-maquina>:3001/webhook/funil` (a tag `funil` separa os eventos na UI)
+   - Escolher o fluxo e mapear campos (coringa e/ou padrão) com os nomes no destino.
+3. Tela de automações → nova automação com gatilho no MESMO fluxo (criar/movimentar/encerrar/tempo) + ação **Enviar dados** apontando pra integração.
+4. Disparar o gatilho (ex: mover card de etapa no Kanban).
+5. Conferir em `http://localhost:3001/` — badge "envio de dados", coluna Processo preenchida se o campo padrão `processoId` estiver mapeado com o nome default. Cruzar com o log da integração no GeoVendas (evento `processo.enviar_dados`).
+
+> O payload de processos é **flat**: só os campos mapeados, com as chaves definidas no mapeamento. Não há chave `event` — a UI identifica pela tag/processo.
 
 ## Simulação de falhas
 
@@ -82,11 +97,13 @@ Tabela `events`:
 |---|---|
 | id | INTEGER PK AUTOINCREMENT |
 | received_at | TEXT (ISO) |
-| event | TEXT |
+| tag | TEXT (segmento de `/webhook/:tag`) |
+| event | TEXT (null nos envios de processo — payload flat) |
 | prospect_id | INTEGER |
+| processo_id | INTEGER (se `processoId` mapeado com nome default) |
 | cnpj | TEXT |
 | ip | TEXT |
-| auth_header | TEXT |
+| auth_header | TEXT (`Authorization` ou `X-API-Key`) |
 | headers_json | TEXT |
 | body_json | TEXT |
 | status_returned | INTEGER |
@@ -96,12 +113,19 @@ Tabela `events`:
 ## Smoke test rápido
 
 ```bash
+# prospect
 curl -X POST http://localhost:3001/webhook \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer test:secret" \
   -d '{"event":"prospect.created","prospectId":42,"cnpj":"12345678000100","razaoSocial":"Empresa Teste"}'
 
-curl http://localhost:3001/events
+# envio de dados de processo (payload flat, com tag)
+curl -X POST http://localhost:3001/webhook/funil \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: test-key" \
+  -d '{"processoId":123,"cnpjCliente":"12345678000100","valorPed":1500.50,"etapa":"Negociação"}'
+
+curl "http://localhost:3001/events?tag=funil"
 ```
 
 ## Exemplo payload outbound completo
@@ -147,6 +171,21 @@ Exemplo com aliases configurados (`cnpj→document`, `contatos.email→contactEm
     { "nome": "Fulano", "contactEmail": "fulano@teste.com" }
   ],
   "camposIntegracao": { "campanha": "Black Friday" }
+}
+```
+
+## Exemplo payload de processo ("Enviar dados")
+
+Flat — só os campos mapeados na integração, chave = nome no destino (override) ou nome padrão (tag do campo coringa / chave do campo padrão). Campo de lista vira array de valores; campo sem valor vem como `null` (chave mapeada sempre presente).
+
+```json
+{
+  "processoId": 123,
+  "cnpjCliente": "12345678000100",
+  "valorPed": 1500.5,
+  "etapa": "Negociação",
+  "itensDevolucao": ["NF 111", "NF 222"],
+  "observacao": null
 }
 ```
 

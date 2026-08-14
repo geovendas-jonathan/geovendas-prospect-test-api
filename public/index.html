@@ -143,6 +143,16 @@
       color: var(--muted);
     }
 
+    .badge.processo {
+      background: #7c2d12;
+      color: #fdba74;
+    }
+
+    .badge.tag {
+      background: #164e63;
+      color: #67e8f9;
+    }
+
     .status-200 {
       color: var(--ok);
     }
@@ -198,7 +208,12 @@
         <option value="prospect.created">prospect.created</option>
         <option value="prospect.updated">prospect.updated</option>
         <option value="prospect.converted">prospect.converted</option>
+        <option value="prospect.deleted">prospect.deleted</option>
       </select>
+    </label>
+    <label>
+      Tag:
+      <input id="tagFilter" placeholder="ex: funil" size="10" />
     </label>
     <label>
       <input type="checkbox" id="autoRefresh" checked />
@@ -213,8 +228,10 @@
       <tr>
         <th>#</th>
         <th>Recebido</th>
+        <th>Tag</th>
         <th>Evento</th>
         <th>Prospect</th>
+        <th>Processo</th>
         <th>CNPJ</th>
         <th>IP</th>
         <th>Status</th>
@@ -238,19 +255,31 @@
   <script>
     const $ = (s) => document.querySelector(s)
     const filter = $('#filter')
+    const tagFilter = $('#tagFilter')
     const tbody = $('#rows')
     const totalCount = $('#totalCount')
     const lastUpdate = $('#lastUpdate')
     const autoRefresh = $('#autoRefresh')
     let timer = null
 
-    function badge(evt) {
-      if (!evt) return '<span class="badge unknown">—</span>'
+    function badge(row) {
+      const evt = row.event
+      if (!evt) {
+        // payload flat do "Enviar dados" (processos) nao carrega chave event
+        if (row.processo_id != null || row.tag) {
+          return '<span class="badge processo">envio de dados</span>'
+        }
+        return '<span class="badge unknown">—</span>'
+      }
       const k = evt.endsWith('.created') ? 'created'
         : evt.endsWith('.updated') ? 'updated'
           : evt.endsWith('.converted') ? 'converted'
             : 'unknown'
       return `<span class="badge ${k}">${evt}</span>`
+    }
+
+    function tagBadge(tag) {
+      return tag ? `<span class="badge tag">${tag}</span>` : '—'
     }
 
     function statusClass(s) {
@@ -262,7 +291,11 @@
     }
 
     async function load() {
-      const qs = filter.value ? `?event=${encodeURIComponent(filter.value)}` : ''
+      const params = new URLSearchParams()
+      if (filter.value) params.set('event', filter.value)
+      const tagValue = tagFilter.value.trim()
+      if (tagValue) params.set('tag', tagValue)
+      const qs = params.toString() ? `?${params.toString()}` : ''
       const r = await fetch('/events' + qs)
       const data = await r.json()
       totalCount.textContent = `${data.total} eventos`
@@ -270,8 +303,10 @@
           <tr data-id="${row.id}">
             <td>${row.id}</td>
             <td>${row.received_at}</td>
-            <td>${badge(row.event)}</td>
+            <td>${tagBadge(row.tag)}</td>
+            <td>${badge(row)}</td>
             <td>${row.prospect_id ?? '—'}</td>
+            <td>${row.processo_id ?? '—'}</td>
             <td>${row.cnpj ?? '—'}</td>
             <td>${row.ip ?? '—'}</td>
             <td class="${statusClass(row.status_returned)}">${row.status_returned}</td>
@@ -298,6 +333,7 @@
 
     $('#refreshBtn').addEventListener('click', load)
     filter.addEventListener('change', load)
+    tagFilter.addEventListener('change', load)
     $('#clearBtn').addEventListener('click', async () => {
       if (!confirm('Limpar todos os eventos?')) return
       await fetch('/events', { method: 'DELETE' })
